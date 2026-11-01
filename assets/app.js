@@ -560,6 +560,7 @@
   }
 
   function renderResults(){
+    saveState();
     if(!allRowsRaw().length){ $("resultsSection").hidden = true; return; }
     $("resultsSection").hidden = false;
 
@@ -772,6 +773,98 @@
     $("resultsSection").scrollIntoView({behavior:"smooth", block:"start"});
   }
 
+
+  /* ---------- keeping the table between visits ----------
+     Everything here stays on this computer. It is written to this browser's
+     localStorage and read back on the next visit; it is never transmitted. */
+  var STORE_KEY = "vacation-accrual-v1";
+  var saveTimer = null, restoredAt = null;
+
+  var CAN_STORE = (function(){
+    try { localStorage.setItem("__probe", "1"); localStorage.removeItem("__probe"); return true; }
+    catch(e){ return false; }   // private window, blocked site data, embedded frame
+  })();
+
+  // JSON turns NaN into null, and isFinite(null) is true — which would silently
+  // convert "this column was not supplied" into a real zero. Tag it instead.
+  function encNaN(k, v){ return (typeof v === "number" && !isFinite(v)) ? "__NaN__" : v; }
+  function decNaN(k, v){ return v === "__NaN__" ? NaN : v; }
+
+  function snapshot(){
+    var pol = {};
+    policyIds.forEach(function(k){ pol[k] = $(k).value; });
+    return {
+      v: 1, at: Date.now(),
+      policy: pol,
+      basis: { accrHoliday: $("accrHoliday").checked, accrVacation: $("accrVacation").checked, accrSick: $("accrSick").checked },
+      combine: $("combine").checked,
+      source: state.source, fileName: state.fileName,
+      grid: state.grid, headerRow: state.headerRow, headers: state.headers, map: state.map,
+      rows: state.rows, manual: state.manual, manualSeq: state.manualSeq,
+      edits: state.edits, deleted: state.deleted
+    };
+  }
+
+  function setSaveNote(text, bad){
+    var el = $("saveNote");
+    if(!el) return;
+    el.textContent = text;
+    el.style.color = bad ? "var(--neg)" : "var(--muted)";
+  }
+
+  function saveState(){
+    if(!CAN_STORE) return;
+    if(!$("keepData").checked) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      try {
+        var json = JSON.stringify(snapshot(), encNaN);
+        localStorage.setItem(STORE_KEY, json);
+        setSaveNote("Kept on this computer · saved " + new Date().toLocaleTimeString() +
+                    " · " + Math.round(json.length / 1024) + " KB");
+      } catch(e){
+        // QuotaExceededError on a very large payroll, or storage switched off mid-session
+        setSaveNote("Could not save on this computer (" + ((e && e.name) || "error") +
+                    "). Use Export CSV to keep this.", true);
+      }
+    }, 300);
+  }
+
+  function clearSaved(){
+    try { localStorage.removeItem(STORE_KEY); } catch(e){}
+  }
+
+  function restoreState(){
+    if(!CAN_STORE) return false;
+    var json = null;
+    try { json = localStorage.getItem(STORE_KEY); } catch(e){ return false; }
+    if(!json) return false;
+    var s;
+    try { s = JSON.parse(json, decNaN); } catch(e){ clearSaved(); return false; }
+    if(!s || s.v !== 1 || !s.rows) { clearSaved(); return false; }
+    try {
+      policyIds.forEach(function(k){ if(s.policy && s.policy[k] !== undefined) $(k).value = s.policy[k]; });
+      if(s.basis){
+        $("accrHoliday").checked = !!s.basis.accrHoliday;
+        $("accrVacation").checked = !!s.basis.accrVacation;
+        $("accrSick").checked = !!s.basis.accrSick;
+      }
+      $("combine").checked = !!s.combine;
+      state.source = s.source; state.fileName = s.fileName || "";
+      state.grid = s.grid || []; state.headerRow = s.headerRow || 0;
+      state.headers = s.headers || [];
+      if(s.map) state.map = s.map;
+      state.rows = s.rows || []; state.manual = s.manual || []; state.manualSeq = s.manualSeq || 0;
+      state.edits = s.edits || {}; state.deleted = s.deleted || {};
+      restoredAt = s.at || null;
+      if(state.grid.length) renderMapPanel();
+      return (state.rows.length + state.manual.length) > 0;
+    } catch(e){
+      clearSaved();
+      return false;
+    }
+  }
+
   /* ---------- export ---------- */
   function buildCSV(){
     var all = decorate();
@@ -885,7 +978,7 @@
   /* ---------- wiring ---------- */
   policyIds.forEach(function(k){
     $(k).addEventListener("input", function(){
-      renderPolicy(); renderQuick(); renderResults();
+      renderPolicy(); renderQuick(); renderResults(); saveState();
     });
   });
   ["accrHoliday","accrVacation","accrSick"].forEach(function(k){
@@ -964,7 +1057,17 @@
     $(k).addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); saveEdit(); } });
   });
 
-  // Theme: in-memory only, nothing written to storage.
+  $("keepData").addEventListener("change", function(){
+    if($("keepData").checked){ saveState(); }
+    else { clearSaved(); setSaveNote("Not kept — this table is gone when you reload."); }
+  });
+  $("clearSaved").addEventListener("click", function(){
+    clearSaved();
+    $("keepData").checked = false;
+    setSaveNote("Saved copy deleted. What is on screen stays until you reload.");
+  });
+
+  // Theme: the chosen theme is not stored; it follows the system on each visit.
   var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   function paintThemeBtn(){ $("themeBtn").textContent = dark ? "Light mode" : "Dark mode"; }
   $("themeBtn").addEventListener("click", function(){
@@ -974,6 +1077,20 @@
   });
   paintThemeBtn();
 
+  if(!CAN_STORE){
+    $("keepData").checked = false;
+    $("keepData").disabled = true;
+    setSaveNote("This browser is blocking local storage, so nothing can be kept here.");
+  }
+
+  var restored = restoreState();
   renderPolicy();
   renderQuick();
+  if(restored){
+    state.pendingNotices = [notice("info",
+      "<b>Picked up where you left off.</b> This table was restored from this computer" +
+      (restoredAt ? ", saved " + new Date(restoredAt).toLocaleString() : "") +
+      ". It has never left your browser.")];
+  }
+  renderResults();
 })();

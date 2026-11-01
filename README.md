@@ -82,10 +82,16 @@ This is not legal advice. For the handbook wording itself, ask an employment att
 
 ## Privacy
 
-Everything runs in the browser. Uploaded files are parsed in memory and never sent anywhere; the
-page writes nothing to `localStorage`, `sessionStorage` or cookies, and keeps no state across a
-reload. Closing the tab discards the data. Exporting hands the CSV directly to the browser's own
-download.
+Everything runs in the browser. Uploaded files are parsed in memory and never sent anywhere, to
+this project or to anyone else. Exporting hands the CSV directly to the browser's own download.
+
+So your work survives a reload, the results table is also written to `localStorage` **on that
+computer**. It never syncs, never reaches a server, and is readable only by that browser profile.
+A checkbox under the table turns it off, and **Clear saved data** wipes it. In a private window or
+with site data blocked it degrades to in-memory only, and says so.
+
+**Do not enable it on a shared front-desk machine**, and do not commit exported payroll CSVs to a
+repository — `.gitignore` blocks `*.csv`, `*.xlsx` and `*.xls` for that reason.
 
 The only outbound requests the page makes are for the web font (Google Fonts) and the spreadsheet
 reader (cdnjs), both at load time. Neither receives any payroll data. Delete those two `<link>` and

@@ -116,7 +116,7 @@
         </div>
         <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm" hidden>
       </div>
-      <p class="privacy"><strong>Nothing leaves this page.</strong> The file is read in your browser and held in memory only — it is never uploaded to a server, and nothing is written to browser storage. Close the tab and it is gone. Exporting hands the CSV straight to your own downloads.</p>
+      <p class="privacy"><strong>Nothing leaves this page.</strong> The file is read in your browser and is never uploaded to a server. So your work survives a reload, the table is also kept in this browser’s storage <em>on this computer</em> — switch that off or wipe it under the results table. Exporting hands the CSV straight to your own downloads.</p>
     </div>
 
     <div class="notices narrow" id="uploadNotices" style="margin-top:16px;"></div>
@@ -157,6 +157,13 @@
       <table id="resultsTable"><thead id="thead"></thead><tbody id="tbody"></tbody><tfoot id="tfoot"></tfoot></table>
     </div>
     <p class="privacy" id="exportMsg" hidden></p>
+
+    <div class="save-row" id="saveRow">
+      <label class="check" for="keepData"><input type="checkbox" id="keepData" checked><span>Keep this table on this computer</span></label>
+      <span class="save-note" id="saveNote"></span>
+      <span style="flex:1 1 auto;"></span>
+      <button type="button" class="btn secondary" id="clearSaved">Clear saved data</button>
+    </div>
   </section>
 
   <footer class="foot">
