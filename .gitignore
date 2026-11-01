@@ -1,0 +1,9 @@
+dist/
+node_modules/
+.DS_Store
+*.log
+
+# never commit real payroll data
+*.csv
+*.xlsx
+*.xls

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vacation Accrual Calculator</title>
+<meta name="description" content="Work out accrued vacation hours, days and dollar liability from hours worked. Runs entirely in the browser.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar"><button type="button" id="themeBtn" class="ghost-btn">Dark mode</button></div>
+
+  <header class="masthead">
+    <h1>Vacation Accrual Calculator</h1>
+    <p class="lede">Turn hours worked into accrued vacation hours, days and dollar liability — one employee at a time, or a whole payroll file.</p>
+  </header>
+
+  <details class="card policy narrow" id="policyPanel">
+    <summary>
+      <span class="chev"></span>
+      <span class="policy-title">Policy settings</span>
+      <span class="rate-inline" id="rateInline"></span>
+    </summary>
+    <div class="policy-body">
+      <div class="field-grid">
+        <label class="fld" for="stdAnnual"><span class="fld-label">Standard vacation hrs/yr:</span>
+          <input type="number" id="stdAnnual" value="80" min="0" step="1" inputmode="decimal"></label>
+        <label class="fld" for="mgrAnnual"><span class="fld-label">Manager vacation hrs/yr:</span>
+          <input type="number" id="mgrAnnual" value="120" min="0" step="1" inputmode="decimal"></label>
+        <label class="fld" for="annualHours"><span class="fld-label">Full-time hrs/yr:</span>
+          <input type="number" id="annualHours" value="2080" min="1" step="1" inputmode="decimal"></label>
+        <label class="fld" for="hoursPerDay"><span class="fld-label">Hours per vacation day:</span>
+          <input type="number" id="hoursPerDay" value="8" min="0.25" step="0.25" inputmode="decimal"></label>
+        <label class="fld" for="flagDays"><span class="fld-label">Flag balances over: <span class="fld-note">days</span></span>
+          <input type="number" id="flagDays" value="15" min="0" step="0.5" inputmode="decimal"></label>
+      </div>
+      <div class="derived" id="derived"></div>
+
+      <div class="basis">
+        <span class="fld-label">Hours that earn accrual:</span>
+        <div class="basis-row">
+          <span class="basis-fixed">Hours worked — always</span>
+          <label class="check" for="accrHoliday"><input type="checkbox" id="accrHoliday" checked><span>Holiday hours</span></label>
+          <label class="check" for="accrVacation"><input type="checkbox" id="accrVacation" checked><span>Vacation / PTO taken</span></label>
+          <label class="check" for="accrSick"><input type="checkbox" id="accrSick" checked><span>Sick / other paid leave</span></label>
+        </div>
+        <p class="basis-note">No law sets this. Federal law does not require paid vacation at all, so what earns accrual is whatever your written policy says — and your own policy is what binds you. <b>Counting all paid hours is the more generous, widely used choice</b>; it stops someone accruing more slowly just because they took time off. Unticking everything gives the strict "hours actually worked" basis, which is the FLSA meaning of the term and the basis state paid-sick-leave minimums are measured on, so it never falls below them. <b>One trap:</b> if your "hours worked" column already includes paid leave, leave these unticked — otherwise those hours count twice.</p>
+      </div>
+
+      <div class="notices" id="policyNotices"></div>
+      <div class="policy-foot">
+        <p>Accrual is earned per hour actually worked, so a part-timer earns at the same rate as a full-timer — just on fewer hours.</p>
+        <button type="button" class="btn secondary" id="resetPolicy">Reset to 80 / 120 / 2080 / 8</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="tabs" role="tablist" aria-label="Calculator mode">
+    <button type="button" class="tab" id="tab-quick" role="tab" aria-selected="true" aria-controls="panel-quick">Quick calculate</button>
+    <button type="button" class="tab" id="tab-upload" role="tab" aria-selected="false" aria-controls="panel-upload">Upload payroll</button>
+  </div>
+
+  <section id="panel-quick" role="tabpanel" aria-labelledby="tab-quick">
+    <div class="card narrow">
+      <div class="split">
+        <div class="form-stack">
+          <label class="fld" for="qName"><span class="fld-label">Employee: <span class="fld-note">optional</span></span>
+            <input type="text" id="qName" placeholder="Name" autocomplete="off"></label>
+
+          <div class="pair">
+            <label class="fld" for="qHours"><span class="fld-label">Hours worked:</span>
+              <input type="text" id="qHours" value="1320" inputmode="decimal" autocomplete="off"></label>
+            <label class="fld" for="qHoliday"><span class="fld-label">Holiday hrs:</span>
+              <input type="text" id="qHoliday" value="" placeholder="0" inputmode="decimal" autocomplete="off"></label>
+          </div>
+
+          <div class="pair">
+            <label class="fld" for="qUsed"><span class="fld-label">Vacation used:</span>
+              <input type="text" id="qUsed" value="" placeholder="0" inputmode="decimal" autocomplete="off"></label>
+            <label class="fld" for="qLeave"><span class="fld-label">Sick / other leave:</span>
+              <input type="text" id="qLeave" value="" placeholder="0" inputmode="decimal" autocomplete="off"></label>
+          </div>
+
+          <div class="fld">
+            <span class="fld-label">Employee type:</span>
+            <div class="seg" role="group" aria-label="Employee type">
+              <button type="button" id="qStd" aria-pressed="true">Standard</button>
+              <button type="button" id="qMgr" aria-pressed="false">Manager</button>
+            </div>
+          </div>
+
+          <label class="fld" for="qRate"><span class="fld-label">Hourly rate ($): <span class="fld-note">optional</span></span>
+            <input type="text" id="qRate" value="" placeholder="0.00" inputmode="decimal" autocomplete="off"></label>
+
+          <p class="msg" id="qHoursMsg" hidden></p>
+          <button type="button" class="wide-btn" id="addBtn">Add to Results Table</button>
+          <p class="msg ok" id="qAddMsg" hidden></p>
+        </div>
+
+        <div class="overview" id="overview"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-upload" role="tabpanel" aria-labelledby="tab-upload" hidden>
+    <div class="card pad narrow">
+      <div class="drop" id="drop">
+        <h3>Drop a payroll file here</h3>
+        <p>CSV, TSV or Excel (.xlsx). One row per employee, or one row per pay period.</p>
+        <div class="drop-actions">
+          <button type="button" class="btn primary" id="browseBtn">Choose a file</button>
+          <button type="button" class="btn secondary" id="sampleBtn">Try with sample data</button>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm" hidden>
+      </div>
+      <p class="privacy"><strong>Nothing leaves this page.</strong> The file is read in your browser and held in memory only — it is never uploaded to a server, and nothing is written to browser storage. Close the tab and it is gone. Exporting hands the CSV straight to your own downloads.</p>
+    </div>
+
+    <div class="notices narrow" id="uploadNotices" style="margin-top:16px;"></div>
+
+    <div class="card pad narrow" id="mapPanel" hidden style="margin-top:16px;">
+      <div class="sec-head" style="margin-bottom:16px;">
+        <h2 style="font-size:20px;">Match your columns</h2>
+        <span class="sec-sub"><span class="file-chip" id="fileChip"></span></span>
+      </div>
+      <div class="map-grid" id="mapGrid"></div>
+      <div class="opt-row" style="margin-top:16px;">
+        <label class="check" for="combine">
+          <input type="checkbox" id="combine">
+          <span>Combine rows by employee name
+            <span class="ck-sub">Sums every hour type — worked, holiday, vacation and other leave. Type and rate come from that employee's first row with a value.</span>
+          </span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section id="resultsSection" hidden>
+    <div class="sec-head">
+      <h2 id="resultsTitle">Results</h2>
+      <span class="sec-sub" id="resultsSub"></span>
+    </div>
+    <div class="notices" id="resultNotices" style="margin-bottom:16px;"></div>
+    <div class="stats" id="stats"></div>
+    <div class="toolbar">
+      <input type="search" class="grow" id="search" placeholder="Search employees" aria-label="Search employees" autocomplete="off">
+      <span class="count" id="rowCount"></span>
+      <span style="flex:1 1 auto;"></span>
+      <button type="button" class="btn secondary" id="clearAddedBtn" hidden>Clear added</button>
+      <button type="button" class="btn secondary" id="copyBtn">Copy as CSV</button>
+      <button type="button" class="btn primary" id="exportBtn">Export CSV</button>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <table id="resultsTable"><thead id="thead"></thead><tbody id="tbody"></tbody><tfoot id="tfoot"></tfoot></table>
+    </div>
+    <p class="privacy" id="exportMsg" hidden></p>
+  </section>
+
+  <footer class="foot">
+    <div>Accrual rate = annual vacation hours ÷ annual full-time hours. Accrued hours = accruing hours × that rate. Balance = accrued − vacation used.</div>
+    <div>Figures are rounded for display only; totals are summed from unrounded values. Check your state's rules on caps, carry-over and payout at separation.</div>
+  </footer>
+
+  <dialog class="dlg" id="editDlg" aria-labelledby="editDlgTitle">
+    <div class="dlg-body">
+      <h3 id="editDlgTitle">Edit employee</h3>
+      <p class="dlg-who" id="editDlgWho"></p>
+      <label class="fld" for="eName"><span class="fld-label">Employee:</span>
+        <input type="text" id="eName" autocomplete="off"></label>
+      <div class="fld"><span class="fld-label">Employee type:</span>
+        <div class="seg" role="group" aria-label="Employee type">
+          <button type="button" id="eStd" aria-pressed="true">Standard</button>
+          <button type="button" id="eMgr" aria-pressed="false">Manager</button>
+        </div>
+      </div>
+      <div class="pair">
+        <label class="fld" for="eHours"><span class="fld-label">Hours worked:</span>
+          <input type="text" id="eHours" inputmode="decimal" autocomplete="off"></label>
+        <label class="fld" for="eHoliday"><span class="fld-label">Holiday hrs:</span>
+          <input type="text" id="eHoliday" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+      </div>
+      <div class="pair">
+        <label class="fld" for="eUsed"><span class="fld-label">Vacation used:</span>
+          <input type="text" id="eUsed" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+        <label class="fld" for="eLeave"><span class="fld-label">Sick / other leave:</span>
+          <input type="text" id="eLeave" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+      </div>
+      <label class="fld" for="eRate"><span class="fld-label">Hourly rate ($): <span class="fld-note">optional</span></span>
+        <input type="text" id="eRate" inputmode="decimal" placeholder="0.00" autocomplete="off"></label>
+      <p class="msg" id="eMsg" hidden></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn danger" id="eDelete">Delete</button>
+        <span style="flex:1 1 auto;"></span>
+        <button type="button" class="btn secondary" id="eCancel">Cancel</button>
+        <button type="button" class="btn primary" id="eSave">Save changes</button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="assets/accrual.js"></script>
+<script src="assets/payroll.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
