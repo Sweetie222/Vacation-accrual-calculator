@@ -3,6 +3,8 @@
 A single-page tool that turns **hours worked** into **accrued vacation hours, days and dollar
 liability** — for one employee at a time, or for a whole payroll export.
 
+**[Open the calculator →](https://sweetie222.github.io/Vacation-accrual-calculator/)**
+
 It is a plain static page. No build step is required to run it, no server, no accounts, and no
 data ever leaves the browser.
 
@@ -118,8 +120,12 @@ edit, and it runs directly from `index.html` without building.
 
 ## Deploying
 
-It is a static site at the repository root, so **Settings → Pages → Deploy from a branch → `main` /
-`(root)`** publishes it as-is. No workflow file needed.
+Served by GitHub Pages from `main` at the repository root, at
+<https://sweetie222.github.io/Vacation-accrual-calculator/>. There is no workflow file and no build
+step — pushing to `main` republishes the site, because the page runs straight from source.
+
+To host it elsewhere, any static host will do, or run `npm run build` and drop the single file from
+`dist/` anywhere at all.
 
 ## Browser support
 
